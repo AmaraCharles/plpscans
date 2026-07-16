@@ -776,9 +776,10 @@ function renderKYCTable(){
 function kycTab(f,el){kycFilter=f;document.querySelectorAll('#page-kyc .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderKYCTable()}
 async function setKYC(id,s){
   try{
-    await apiFetch('/kyc/'+id+'/status',{method:'PUT',body:JSON.stringify({status:s})});
+    const ep=s==='approved'?`/${id}/kyc/approve`:`/${id}/kyc/reject`;
+    const data=await apiFetch(ep,{method:'PUT'});
     const k=KYC.find(x=>x._id===id);if(k)k.status=s;
-    toast('KYC '+s);renderKYCTable();updateBadges();
+    toast(data.message||'KYC '+s);renderKYCTable();updateBadges();
   }catch(e){toast('Failed: '+e.message,true);}
 }
 
