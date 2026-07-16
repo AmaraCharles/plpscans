@@ -738,23 +738,34 @@ async function deleteUser(){
 async function renderKYC(){
   document.getElementById('kyc-table').innerHTML='<tr><td colspan="6" class="empty">Loading…</td></tr>';
   try{
-    const data=await apiFetch('/auth/kyc');
+    const data=await apiFetch('/auth/kyc/fetch-images');
     KYC=Array.isArray(data)?data:(data.kyc||data.data||[]);
-    KYC=KYC.map(k=>({...k,owner:k.owner||k.fullName||(k.user?.name)||k.user?.email||'Unknown',email:k.email||k.user?.email||''}));
+    KYC=KYC.map(k=>({...k,owner:k.owner||k.fullName||(k.user?.name)||k.user?.email||'Unknown',email:k.docEmail||k.email||k.user?.email||'',status:k.status||'pending'}));
     renderKYCTable();updateBadges();
   }catch(e){document.getElementById('kyc-table').innerHTML=`<tr><td colspan="6" class="empty">Error: ${e.message}</td></tr>`;}
+}
+function parseKycImages(raw){
+  let arr=Array.isArray(raw)?raw:(raw?[raw]:[]);
+  let out=[];
+  arr.forEach(item=>{
+    if(typeof item==='string'&&item.trim().startsWith('[')){
+      try{const parsed=JSON.parse(item);Array.isArray(parsed)?out.push(...parsed):out.push(item);}
+      catch{out.push(item);}
+    }else if(typeof item==='string'){out.push(item);}
+  });
+  return out.filter(Boolean);
 }
 function renderKYCTable(){
   const list=kycFilter==='all'?KYC:KYC.filter(k=>k.status===kycFilter);
   const tb=document.getElementById('kyc-table');
   tb.innerHTML=list.length?list.map((k,i)=>{
     const c=k.status==='approved'?'bs':k.status==='rejected'?'bd':'bw';
-    const imgs=Array.isArray(k.imageUrl)?k.imageUrl:(k.documents||[]);
+    const imgs=parseKycImages(k.imageUrl||k.documents);
     return`<tr>
       <td><div class="uc"><div class="av ${av(i)}">${initials(k.owner)}</div>${k.owner}</div></td>
       <td style="font-size:11px;color:var(--tx2)">${k.email}</td>
       <td class="mono">${k.docNum||k.documentNumber||'—'}</td>
-      <td><div style="display:flex;gap:3px">${imgs.map(x=>`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px;color:var(--tx3)">DOC</div>`).join('')||'—'}</div></td>
+      <td><div style="display:flex;gap:5px;flex-wrap:wrap">${imgs.map((u,j)=>`<a href="${u}" target="_blank" rel="noopener"><img src="${u}" alt="doc${j+1}" style="width:36px;height:36px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"></a>`).join('')||'<span style="color:var(--tx3);font-size:11px">—</span>'}</div></td>
       <td><span class="tag ${c}">${k.status}</span></td>
       <td><div style="display:flex;gap:5px">
         ${k.status!=='approved'?`<button class="btn btn-sm btn-s" onclick="setKYC('${k._id}','approved')">Approve</button>`:''}
