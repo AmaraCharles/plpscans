@@ -740,7 +740,7 @@ async function renderKYC(){
   try{
     const data=await apiFetch('/auth/kyc/fetch-images');
     KYC=Array.isArray(data)?data:(data.kyc||data.data||[]);
-    KYC=KYC.map(k=>({...k,owner:k.owner||k.fullName||(k.user?.name)||k.user?.email||'Unknown',email:k.docEmail||k.email||k.user?.email||'',status:k.status||'pending'}));
+    KYC=KYC.map(k=>({...k,owner:k.owner||k.fullName||(k.user?.name)||k.user?.email||'Unknown',email:k.docEmail||k.email||k.user?.email||'',status:k.status||'pending',userId:(typeof k.user==='object'&&k.user)?(k.user._id||k.user.id):(k.user||k.userId||k._id)}));
     renderKYCTable();updateBadges();
   }catch(e){document.getElementById('kyc-table').innerHTML=`<tr><td colspan="6" class="empty">Error: ${e.message}</td></tr>`;}
 }
@@ -776,9 +776,12 @@ function renderKYCTable(){
 function kycTab(f,el){kycFilter=f;document.querySelectorAll('#page-kyc .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderKYCTable()}
 async function setKYC(id,s){
   try{
-    const ep=s==='approved'?`/${id}/kyc/approve`:`/${id}/kyc/reject`;
+    const k=KYC.find(x=>x._id===id);
+    const u=USERS.find(x=>x.email&&k?.email&&x.email.toLowerCase()===k.email.toLowerCase());
+    const uid=u?._id||k?.userId||id;
+    const ep=s==='approved'?`/auth/kyc/${uid}/approve`:`/auth/kyc/${uid}/reject`;
     const data=await apiFetch(ep,{method:'PUT'});
-    const k=KYC.find(x=>x._id===id);if(k)k.status=s;
+    if(k)k.status=s;
     toast(data.message||'KYC '+s);renderKYCTable();updateBadges();
   }catch(e){toast('Failed: '+e.message,true);}
 }
